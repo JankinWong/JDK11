@@ -398,7 +398,7 @@ public abstract class AbstractQueuedSynchronizer extends AbstractOwnableSynchron
             
             // 当node进入排队后再次尝试申请锁，如果还是失败，则可能进入阻塞
             if(acquireQueued(node, arg)){
-                // 如果线程解除阻塞时拥有中断标记，此处要进行设置
+                // 如果上述过程（这个方法返回了，说明线程已经醒过来了），如果被中断过，此处要进行设置
                 selfInterrupt();
             }
         }
@@ -446,7 +446,8 @@ public abstract class AbstractQueuedSynchronizer extends AbstractOwnableSynchron
      *
      * @return {@code true} if interrupted while waiting
      */
-    // 当node进入排队后再次尝试申请锁，如果还是失败，则可能进入阻塞
+    // 当node进入排队后再次尝试申请锁，如果还是失败，则可能进入阻塞，直到被唤醒（被其他线程用unpark方法唤醒）
+    // 然后再抢锁成功，才返回这个方法，否则继续park
     final boolean acquireQueued(final Node node, int arg) {
         
         // 记录当前线程从阻塞中醒来时的中断标记（阻塞(park)期间也可设置中断标记）
@@ -480,12 +481,12 @@ public abstract class AbstractQueuedSynchronizer extends AbstractOwnableSynchron
                 }
                 
                 // 抢锁失败时，尝试为node的前驱设置阻塞标记（每个结点的阻塞标记设置在其前驱上）
-                if(shouldParkAfterFailedAcquire(p, node)) { //前缀节点设置为阻塞成功后才使线程阻塞
+                if(shouldParkAfterFailedAcquire(p, node)) {  //前缀节点设置为阻塞标记成功后才使线程阻塞
                     /*
                      * 使线程陷入阻塞
                      *
-                     * 如果首次到达这里时线程被标记为中断，则此步只是简单地清除中断标记，并返回true
-                     * （标记为中断，为什么就不能阻塞这个线程了呢？---因为这里阻塞的的方式是使用LockSupport.park方法，如果已经是中断状态了，那阻塞无效，中断起的效果和unpark一样）
+                     * 如果首次到达这里时线程已经被标记为中断了，则此步只是简单地清除中断标记，并返回true
+                     * （标记为中断，为什么就不能阻塞这个线程了呢？---因为这里阻塞的的方式是使用LockSupport.park方法，若有中断标志，park不管调用几次，都不阻塞线程）
                      * 接下来，通过死循环，线程再次来到这里，然后进入阻塞(park)...
                      *
                      * 如果首次到达这里时线程没有被标记为中断，则直接进入阻塞(park)
@@ -1993,7 +1994,6 @@ public abstract class AbstractQueuedSynchronizer extends AbstractOwnableSynchron
         if(ws>0) {
             /* Predecessor was cancelled. Skip over predecessors and indicate retry. */
             do {
-                //因为前置节点为取消状态 ，移除该前置节点和所有前置被取消的节点
                 node.prev = pred = pred.prev;
             } while(pred.waitStatus>0);
             
@@ -2017,10 +2017,11 @@ public abstract class AbstractQueuedSynchronizer extends AbstractOwnableSynchron
      * @return {@code true} if interrupted
      */
     // 设置线程进入阻塞状态，并清除线程的中断状态。返回值代表之前线程是否处于阻塞状态
+    //如果有中断标志，那park不会生效，返回中断状态true，并清除中断标志
     private final boolean parkAndCheckInterrupt() {
         // 设置线程阻塞（对标记为中断的线程无效）
         LockSupport.park(this);
-        //清除线程的中断状态
+        //返回中断状态，并清除线程的中断状态
         return Thread.interrupted();
     }
     
