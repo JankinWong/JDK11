@@ -762,7 +762,7 @@ public class ReentrantLock implements Lock, Serializable {
         
         // 申请一次公平锁，返回值代表锁是否申请成功
         final boolean fairTryAcquire(int acquires) {
-            // 获取申请锁的线程
+            // 获取申请锁的线程（也就是当前线程）
             final Thread current = Thread.currentThread();
             
             // 当前许可证数量

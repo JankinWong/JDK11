@@ -61,8 +61,10 @@ public class AtomicInteger extends Number implements Serializable {
     private static final jdk.internal.misc.Unsafe U = jdk.internal.misc.Unsafe.getUnsafe();
     
     private volatile int value;
-    
-    // 存储字段value在JVM中的偏移地址
+
+    /**
+     * 用于获取value字段相对当前对象的“起始地址”的偏移量
+     */
     private static final long VALUE = U.objectFieldOffset(AtomicInteger.class, "value");
     
     
